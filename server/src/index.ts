@@ -1,37 +1,28 @@
-/**
- * @USAGE: 
-    $>  curl -X POST http://localhost:9000/delete-listing \
-        -H 'Content-Type: application/json' \
-        -d '{"id": "003"}'
- */
+require("dotenv").config();
 
-import express from "express";
+import express, { Application } from "express";
 import { ApolloServer } from "apollo-server-express";
-// import { schema } from "./graphql";
-import { listings } from "./listings";
+import { connectDatabase } from "./database";
 import { typeDefs, resolvers } from "./graphql";
 
-const app = express();
-const port = 9000;
-const server = new ApolloServer({ typeDefs, resolvers });
+// const port = 9000;
 
-server.applyMiddleware({ app, path: "/api" });
+const mount = async (app: Application) => {
+  const db = await connectDatabase();
+  const server = new ApolloServer({
+    typeDefs,
+    resolvers,
+    context: () => ({ db }),
+  });
+  server.applyMiddleware({ app, path: "/api" });
 
-app.use(express.json());
+  app.listen(process.env.PORT);
 
-app.get("/listings", (_req, res) => res.send(listings));
+  console.log(`[app]: http://localhost:${process.env.PORT}`);
 
-app.post("/delete-listing", (req, res) => {
-  const id: string = req.body.id;
-  for (let i = 0; i < listings.length; i++) {
-    if (listings[i].id === id) {
-      return res.send(listings.splice(i, 1));
-    }
-  }
+  const listings = await db.listings.find({}).toArray();
+  console.log(listings);
+};
 
-  return res.send("failed to delete listing");
-});
-
-app.listen(port);
-
-console.log(`[app]: http://localhost:${port}`);
+mount(express());
+ 
